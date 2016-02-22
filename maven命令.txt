@@ -1,0 +1,30 @@
+1、创建maven项目
+	mvn archetype:generate -DgroupId=com.erjiao -DartifactId=helloworld -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+
+[INFO] ----------------------------------------------------------------------------
+[INFO] Using following parameters for creating project from Old (1.x) Archetype: maven-archetype-quickstart:1.0	
+[INFO] ---------------------------------------------------------------------------
+[INFO] Parameter: groupId, Value: com.erjiao
+[INFO] Parameter: packageName, Value: com.erjiao
+[INFO] Parameter: package, Value: com.erjiao
+[INFO] Parameter: artifactId, Value: helloworld
+[INFO] Parameter: basedir, Value: C:\Users\liukai
+[INFO] Parameter: version, Value: 1.0-SNAPSHOT
+[INFO] project created from Old (1.x) Archetype in dir: C:\Users\liukai\helloworld
+[INFO] ------------------------------------------------------------------------
+
+2、清理, 编译项目代码
+  mvn clean compile
+  
+  clean 告诉maven清理输入出目录target/，compile告诉maven编译项目主代码
+
+3、产生eclipse 的项目结构
+  mvn eclipse:eclipse
+  
+  会生成 .classpath, .project 文件
+ 
+4、导入eclipse
+
+  先配置maven仓库路径: Window----Perferences-----java-----Build Path-----Classpath Variables
+  
+  New 一个变量的类路径: Name: M2_REPO   Path: Maven仓库路径(例: D:/Program Files/apache-maven-3.3.9/repository)
