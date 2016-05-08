@@ -1,3 +1,0 @@
-struts.messages.error.file.too.large=文件太大！
-struts.messages.error.content.type.not.allowed=类型不对！
-struts.messages.error.file.extension.not.allowed=扩展名不符！
