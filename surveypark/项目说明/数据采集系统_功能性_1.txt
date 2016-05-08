@@ -1,0 +1,309 @@
+加密:md5 sha1
+--------------------------
+public class DataUtil {
+	/**
+	 * 使用md5算法进行加密 
+	 */
+	public static String md5(String src){
+		try {
+			StringBuffer buffer = new StringBuffer();
+			char[] chars = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+			byte[] bytes = src.getBytes();
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			byte[] targ = md.digest(bytes);
+			for(byte b: targ){
+				buffer.append(chars[(b >> 4) & 0x0F]);
+				buffer.append(chars[b & 0x0F]);
+			}
+			return buffer.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null ;
+	}
+}
+
+
+配置spring的监听器(web.xml)
+--------------------------
+<!-- 通过上下文参数配置spring文件的位置 -->
+<context-param>
+	<param-name>contextConfigLocation</param-name>
+	<param-value>classpath:beans.xml</param-value>
+</context-param>
+
+<!-- 上下文载入器监听器,确保web服务器启动时,直接完成spring容器的初始化 -->
+<listener>
+	<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+</listener>
+
+
+功能性:
+到达注册页面
+1.导航栏-->用户注册链接
+2.进入RegAction.toRegPage()方法
+	public String toRegPage(){
+		return "regPage" ;
+	}
+3.struts.xml
+	<action name="RegAction_*" class="regAction" method="{1}">
+		<result name="regPage">/reg.jsp</result>
+	</action>
+4.跳转到/reg.jsp
+	<s:form>
+		<s:textfield name="email" />
+		...
+	</s:form>
+
+进行用户注册
+------------------
+1.注册页面--->提交
+2.RegAction.doReg()方法
+	public String doReg(){
+		1.接受用户信息--model
+		2.userService.saveEntity(model);
+		3.return "success" ;
+	}
+
+	public void validate(){
+		1.非空
+		2.密码一致性
+		3.email是否占用
+	}
+3.struts.xml
+	<action ...>
+		<result name="success">/index.jsp</result>
+		<result name="input">/reg.jsp</result>
+	</action>
+4.跳转到/reg.jsp|/index.jsp
+
+进入登陆 
+---------------------------
+1.导航栏-->首页
+2.LoginAction.toLoginPage()
+	public String toLoginPage()
+	{
+		1.return "loginPage" ;
+	}
+3.struts.xml
+	<action name="LoginAction_*" class=""  method="">
+		<result name="loginPage">/index.jsp</result>
+		<result name="input">/index.jsp</result>
+	</action>
+4.跳转到/index.jsp
+
+
+进行登陆验证
+-------------------
+1.登陆页面-->提交
+2.LoginAction.doLogin()
+	public String doLogin(){
+		return "success";
+	}
+
+	public void validate(){
+		1.验证登陆信息
+			User user = userService.validateLoginInfo(model.getEmail(),DataUtil.md5(model.getPassword()));
+			public User validateLoginInfo(String email,String md5){
+				String hql = "from User u where u.email = ? and u.password = ?" ;
+				List<User> list = this.findEntityByHQL(hql,email,md5);
+				return ValidateUtil.isValid(list)?list.get(0):null;
+			}
+		2.失败:错误信息,index.jsp
+		3.成功:user --> session
+	}
+3.struts.xml
+	<action ..>
+		<result name="success">/index.jsp</result>
+	</action>
+
+查看我的调查列表
+----------------------
+1.导航栏-->我的调查
+2.SurveyAction.mySurveys()方法
+	public String mySurveys(){
+		1.session --> user
+		2.this.mySurveys = surveyService.findMySurveys(user);
+			public List<Survey> findMySurveys(User user){
+				String hql = "from Survey s where s.user.id = ?" ;
+				return surveyDao.findEntityByHQL(hql,user.getId());
+			}
+		3.return "mySurveyListPage";
+	}
+3.struts.xml
+	<.
+4.跳转到/mySurveyList.jsp
+	<s:iterator value="mySurveys" var="s">
+		<s:property value="#s.id" />
+		<s:property value="#s.title" />
+		<s:date name="#s.createTime" format="yyyy-MM-dd hh:mm" />
+
+	</s:iterator>
+
+新建调查
+-----------------------
+1.导航栏-->新建调查
+2.SurveyAction.newSurvey()
+	public String newSurvey(){
+		1.session --> user
+		2.this.model = surveyService.newSurvey(user);
+			public Survey newSurvey(User user){
+				Survey s = new Survey();
+				Page p = new Page();
+				p.setSurvey(s);
+				s.getPages().add(p);
+				surveyDao.saveEntity(s);
+				pageDao.saveEntity(p);
+				return s ;
+			}
+		3.return "designSurveyPage" ;
+	}
+3.struts.xml
+	<result name="designSurveyPage">/designSurvey.jsp</result>
+4.跳转到/designSurvey.jsp
+	
+
+登陆拦截器
+-----------------------
+/**
+ * 登陆拦截器
+ */
+public class LoginInterceptor implements Interceptor {
+
+	private static final long serialVersionUID = 4230211839075439660L;
+
+	public void destroy() {
+	}
+
+	public void init() {
+	}
+
+	public String intercept(ActionInvocation arg0) throws Exception {
+		BaseAction action = (BaseAction) arg0.getAction();
+		if(action instanceof LoginAction
+				|| action instanceof RegAction){
+			return arg0.invoke();
+		}
+		else{
+			User user = (User) arg0.getInvocationContext().getSession().get("user");
+			if(user == null){
+				//去登陆
+				return "login" ;
+			}
+			else{
+				//放行
+				return arg0.invoke();
+			}
+		}
+	}
+}
+
+注册拦截器
+------------------------
+<interceptors>
+	<!-- 注册登陆拦截器 -->
+	<interceptor name="loginInterceptor" class="com.atguigu.surveypark.struts2.interceptor.LoginInterceptor" />
+	<!-- 定义拦截器栈 -->
+	<interceptor-stack name="surveyparkStack">
+		<interceptor-ref name="loginInterceptor" />
+		<interceptor-ref name="defaultStack" />
+	</interceptor-stack>
+</interceptors>
+
+<!-- 定义默认栈 -->
+<default-interceptor-ref name="surveyparkStack" />
+
+
+使用UserAware接口在登陆拦截器中统一将User对象注入给action.
+
+设计调查页面分析:
+------------------------------
+<!-- 调查标题 -->
+<s:property value="title" />
+<!-- 输出页面集合 -->
+<s:iterator value="pages" var="p">
+	
+	<!-- 页面标题 -->
+	<s:property value="#p.title" />
+	<!-- 迭代问题集合 -->
+	<s:iterator value="#p.questions" var="q">
+		<!-- 问题标题 -->
+		<s:property value="#q.title" />
+
+		<!-- 处理选项输出 -->
+		<s:set var="qt" value="#q.questionType" />
+
+		<!-- 0,1,2,3 -->
+		<s:if test="#qt < 4">
+			<s:iterator value="#q.optionArr">
+				<input type="<s:property value="#qt < 2?'radio':'checkbox'" />"><s:property />
+				<!-- 是否携带br -->
+				<s:if test="#qt == 1 || #qt == 3"><br></s:if>
+			</s:iterator>
+			<!-- 是否带其他 -->
+			<s:if test="other">
+				<input type="<s:property value="#qt < 2?'radio':'checkbox'" />">其他
+				<!-- 其他项样式 -->
+				<s:if test="#q.otherStyle == 1">
+					<!-- 文本框 -->
+					<input type="text">
+				</s:if>
+				<s:elseif test="#q.otherStyle == 2">
+					<!-- 下拉列表 -->
+					<select>
+						<s:iterator value="#q.otherSelectOptions">
+							<option><s:property /></option>
+						</s:iterator>
+					</select>
+				</s:elseif>
+			</s:if>
+		</s:if>
+
+		<!-- 4,5 -->
+		<s:elseif test="#qt == 4 || #qt == 5">
+			<!-- 下拉列表 -->
+			<s:if test="#qt == 4">
+				<select>
+					<s:iterator value="#q.options">
+						<option><s:property /></option>
+					</s:iterator>
+				</select>
+			</s:if>
+			<s:elseif test="#qt == 5">
+				<input type="text">
+			</s:elseif>
+		</s:elseif>
+
+		<!-- 6,7,8:矩阵式问题 -->
+		<s:elseif test="#qt > 5">
+			<table>
+				<!-- 表头 -->
+				<tr>
+					<td></td>
+					<s:iterator value="#q.matrixColTitleArr">
+						<td><s:property /></td>
+					</s:iterator>
+				</tr>
+				<!-- 输出n多行 -->
+				<s:iterator value="#q.matrixRowTitleArr">
+					<tr>
+						<td><s:property /></td>
+						<s:iterator value="#q.matrixColTitleArr">
+							<td>
+								<s:if test="#qt == 6"><input type="radio"></s:if>
+								<s:if test="#qt == 7"><input type="checkbox"></s:if>
+								<s:if test="#qt == 8">
+									<select>
+										<s:iterator value="#q.matrixSelectOptionArr">
+											<option><s:property /></option>
+										</s:iterator>
+									</select>
+								</s:if>
+							</td>
+						</s:iterator>
+					</tr>
+				</s:iterator>
+			</table>
+		</s:elseif>
+	</s:iterator>
+</s:iterator>

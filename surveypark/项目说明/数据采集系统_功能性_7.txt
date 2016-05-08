@@ -1,0 +1,380 @@
+
+角色管理
+ --------------------
+1.导航栏-->角色管理
+2.RoleAction.findAllRoles()
+	public String findAllRoles(){
+		this.allRoles = roleService.findAllEntities();
+		return "roleListPage" ;
+	}
+3.struts.xml
+	<action name="RoleAction_*" class="roleAction" method="{1}">
+		<result name="roleListPage">/roleList.jsp</result>
+	</action>
+4.
+
+
+添加角色
+--------------
+1.角色列表-->添加角色
+2.RoleAction.toAddRolePage();
+	public String toAddRolePage(){
+		this.noOwnRights = rightService.findAllEntities();
+		return "addRolePage" ;
+	}
+3.struts.xml
+	
+4.跳转到/editRole.jsp
+	<s:form>
+		<s:textfield name="roleName|roleValue|roleDesc" />
+		....
+		<!-- 左侧列表:Role.rights集合绑定---角色拥有的权限列表 -->
+		<s:select id="left" list="rights" listKey="id" listValue="rightName" multiple="true"/>
+
+		<!-- 右侧列表:同RoleAction.noOwnRights集合绑定---角色没有的权限列表 -->
+		<s:select id="right" list="noOwnRights" listKey="id" listValue="rightName" multiple="true"/>
+	</s:form>
+
+保存/更新角色
+------------------
+1.添加页面-->提交
+2.RoleAction.saveOrUpdateRole();
+	public String saveorUpdateRole(){
+		model + ownRightIds(Integer[])
+		roleService.saveOrUpdateRole(model,ownRightIds);
+			public void saveOrUpdateRole(Role r ,Integer[] ids){
+				if(!ids有效?){
+					r.getRights().clear();
+				}
+				else{
+					//
+					List<Right> list = rightService.findRightsInRange(ids);
+					r.setRights(list);
+				}
+				this.saveOrUpdateEntity(r);
+			}
+		return "findAllRolesAction" ;
+	}
+3.struts.xml
+
+4.
+
+修改角色
+--------------------
+1.角色列表-->修改
+2.RoleAction.editRole()
+	public String editRole(){
+		roleId
+		this.model = roleService.getEntity(roleId);
+		this.noOwnRights = rightService.findRightsNotInRange(model.getRights());
+			public List<Right> findRightsNotInRange(Set<Right> rights){
+				if(!rights有效?){
+					retutn this.findAllEntities();
+				}
+				else{
+					String hql = "from Right r where r.id not in ("+extractRightIds(rights)+")" ;
+					return this.findEntitiesByHQL(hql);
+				}
+			}
+		return "editRolePage" ;
+	}
+3.struts.xml
+	<result name="editRolePage">/editRole.jsp</result>
+4.
+
+删除角色
+-----------------
+1.角色列表-->删除
+2.RoleAction.deleteRole();
+	public String deleteRole(){
+		roleId
+		roleService.deleteEntity(new Role(roleId));
+		return "findAllRolesAction" ;
+	}
+3.略
+4.略
+
+用户授权
+------------------
+1.导航栏-->用户授权
+2.UserAuthorizeAction.findAllUsers()
+	public String findAllUsers(){
+		this.allUsers = userService.findAllEntities();
+		return "userAuthorizeListPage" ;
+	}
+3.struts.xml
+	<action name="UserAuthorizeAction_*" class="userAuthorizeAction" method="{1}">
+		<result name="userAuthorizeList">/userAuthorizeList.jsp</result>
+	</action>
+4.跳转到/.jsp
+
+修改用户授权
+---------------
+1.用户授权列表-->修改授权
+2.UserAuthorizeAction.editAuthorize();
+	public String editAuthorize(){
+		userId
+		this.model = userService.getEntity(userId);
+		this.noOwnRoles = roleService.findRolesNotInRange(model.getRoles());
+			参考Role.
+		return "editAuthorizePage" ;
+	}
+3.struts.xml
+4.跳转到/.jsp
+	<s:form>
+		...
+		<s:select id="left" name="ownRoleIds" list="roles" listKey="id" listValue="roleName" />
+
+		<s:select id="right" list="noOwnRoles" listKey="id" listValue="roleName" />
+	</s:form>
+
+更新用户授权
+-------------------
+1.修改授权页面-->提交
+2.UserAuthorizeAction.updateAuthorize();
+	public String updateAuthorize(){
+		model + ownRoleIds
+		userService.updateAuthorize(model,ownRoleIds);
+			public void updateAuthorize(User user,Integer[] roleIds){
+				//一定要查询在db中的新用户，否则会将用户信息改掉
+				User newUser = this.getEntity(user.getId());
+				if(!roleIds有效?){
+					newUser.getRoles().clear();
+				}
+				else{
+					List<Role> roles = roleService.findRolesInRange(roleIds);
+					newUser.setRoles(new Hashset<User>(roles));
+				}
+			}
+		return "findAllUsersAction" ;
+	}
+3.struts.xml
+	<result name="findAllUsersAction" type="redirectAction">
+		<param name="namespace">/</param>
+		<param name="actionName">UserAuthorizeAction_findAllUsers</param>
+	</result>
+4.重定向
+
+清除授权
+---------------
+1.授权列表-->清除授权
+2.UserAuthorizeAction.clearAuthorize()
+	public String clearAuthorize(){
+		userId
+		userSerivce.clearAuthorize(userId);
+			public void clearAuthorize(Integer userid){
+				this.getEntity(userid).getRoles().clear();
+			}
+		return "findAllUsersAction" ;
+	}
+3.struts.xml
+	略
+4.重定向
+
+计算权限总和
+---------------------
+class LoginAction{
+	...
+	/**
+	 * 计算用户权限总和
+	 */
+	public void calculateRightSum() {
+		int pos = 0;
+		long code = 0 ;
+		for(Role role : roles){
+			for(Right r : role.getRights()){
+				pos = r.getRightPos();
+				code = r.getRightCode();
+				rightSum[pos] = rightSum[pos] | code ;
+			}
+		}
+		//释放资源
+		roles = null ;
+	}
+}
+
+权限过滤:
+-------------------------------
+class Right{
+	...
+	private boolean common ;
+	//is/set
+
+}
+
+Right.hbm.xml
+<property name="common" column="common" type="boolean" update="false"/>
+
+改造LoginInterceptor -->RightFilterInterceptor
+class RightFilterInterceptor{
+	...
+}
+
+权限过滤流程
+-----------------
+1.用户点击链接--->拦截中
+2.url --查询--> Right
+3.对Right对象进行判断
+if(公共资源?){
+	//放行
+}
+else{
+	if(登陆?){
+		//
+		if(有权限?){
+			//放行
+		}
+		else{
+			//没有权限错误页
+		}
+	}
+	else{
+		//去登陆页面
+	}
+}
+
+admin/admin:
+
+超级管理员:
+----------------
+1.Role{roleValue="-1"}
+/**
+ * 计算用户权限总和
+ */
+public void calculateRightSum() {
+	int pos = 0;
+	long code = 0 ;
+	for(Role role : roles){
+		//判断是否超级管理员
+		if("-1".equals(role.getRoleValue())){
+			this.superAdmin = true ;
+			//释放资源
+			roles = null ;
+			return ;
+		}
+		for(Right r : role.getRights()){
+			pos = r.getRightPos();
+			code = r.getRightCode();
+			rightSum[pos] = rightSum[pos] | code ;
+		}
+	}
+	//释放资源
+	roles = null ;
+}
+
+带有超级管理员的权限过滤流程
+------------------------------
+1.用户点击链接--->拦截中
+2.url --查询--> Right
+3.对Right对象进行判断
+if(公共资源?){
+	//放行
+}
+else{
+	if(登陆?){
+		if(超级管理员?){
+			//放行
+		}
+		else{
+			if(有权限?){
+				//放行
+			}
+			else{
+				//错误页
+			}
+		}
+	}
+	else{
+		//去登陆页面
+	}
+}
+
+使用spring监听器实现容器初始化完成后,立刻将所有权限查询出来并放置到application.
+-------------------------------------------------------------------------------
+	/**
+	 * 初始化权限监听器,在spring初始化完成后立即调用.
+	 */
+	@Component
+	@SuppressWarnings("rawtypes")
+	public class IniRightListener implements ApplicationListener,ServletContextAware {
+		@Resource
+		private RightService rs ;
+		
+		//接受ServletContext
+		private ServletContext sc;
+		
+		public void onApplicationEvent(ApplicationEvent arg0) {
+			//上下文刷新事件
+			if(arg0 instanceof ContextRefreshedEvent){
+				//查出所有权限
+				List<Right> rights = rs.findAllEntities();
+				Map<String, Right> map = new HashMap<String, Right>();
+				for(Right r : rights){
+					map.put(r.getRightUrl(), r);
+				}
+				if(sc != null){
+					sc.setAttribute("all_rights_map", map);
+					System.out.println("初始化所有权限到Application中!!!!");
+				}
+			}
+		}
+		
+		//注入ServletContext
+		public void setServletContext(ServletContext servletContext) {
+			this.sc = servletContext ;
+		}
+	}
+
+	包扫描
+	<context:component-scan base-package="com.atguigu.surveypark.dao.impl,
+				com.atguigu.surveypark.service.impl,
+				com.atguigu.surveypark.listener,
+				com.atguigu.surveypark.struts2.action" />
+
+权限控制分为粗细两种粒度:
+-------------------------
+粗粒度:拦截器,安全的.
+
+细粒度:使用标签覆盖实现.
+
+aop:
+前置
+后置
+环绕
+引入
+异常
+
+日志管理
+----------------------
+1.增加Log类
+	public class Log extends BaseEntity<String> {
+		private static final long serialVersionUID = 4624581141358416604L;
+		private String id;
+		private String operator;// 操作人
+		private String operName;// 操作名称,方法名
+		private String operParams;// 操作参数
+		private String operResult;// 操作结果,成功,失败
+		private String resultMsg;// 结果消息
+		private Date operTime = new Date(); // 操作时间
+		//get/set
+	}
+
+	<?xml version="1.0"?>
+	<!DOCTYPE hibernate-mapping PUBLIC 
+		"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+		"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	<hibernate-mapping package="com.atguigu.surveypark.model">
+		<class name="Log" table="logs">
+			<id name="id" column="id" type="string">
+				<generator class="identity" />
+			</id>
+			<property name="operator" column="operator" type="string" length="100" />
+			<property name="operName" column="opername" type="string" length="100" />
+			<property name="operParams" column="operparams" type="string" length="500" />
+			<property name="operResult" column="operresult" type="string" length="50" />
+			<property name="resultMsg" column="resultmsg" type="string" length="500" />
+			<property name="operTime" column="opertime" type="timestamp" />
+		</class>	
+	</hibernate-mapping>    
+2.使用pojos + xml开发环绕通知--Logger
+User{id:1,email:xupccc@hotmail.com,}

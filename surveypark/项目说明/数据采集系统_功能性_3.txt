@@ -1,0 +1,275 @@
+清查调查
+-----------------
+1.调查列表-->清查调查
+2.SurveyAction.clearAnswers()
+	public String clearAnswers(){
+		sid
+		surveyService.clearAnswers(sid);
+			public void clearAnswers(Integer sid){
+				String hql = "delete from Answer a where a.surveyId = ?" ;
+				answerDao.batchEntityByHQL(hql,sid);
+			}
+		return "findMySurveysAction" ;
+	}
+3.略
+4.略
+
+打开/关闭调查
+------------------
+1.	class Survey{
+		boolean closed ;//是否关闭
+	}
+	
+	<property name="closed" column="closed" type="boolean" />
+2.调查列表-->打开/关闭
+3.SurveyAction.toggleStatus()方法
+	public String toggleStatus(){
+		sid
+		surveyService.toggleStatus(sid);
+			public void toggleStatus(Integer sid){
+				String hql = "update Survey s set s.closed = !s.closed where s.id = ?" ;
+				surveyDao.batchEntityByHQL(hql,sid);
+			}
+		return "findMySurveysAction" ;
+	}
+3.略
+4.略
+5.需要手动修改db中的closed值,否则hibernate无法将null值赋值给基本数据类型.
+
+
+增加Logo
+------------------------------
+1.增加属性
+	class Survey{
+		...
+		private String logoPhotoPath ;
+	}
+
+	<property name="logoPhotoPath" column="logophotopath" type="string" length="200" />
+	/webcontent/upload/
+2.设计调查-->增加logo
+3.SurveyAction.toAddLogoPage()
+	public String toAddLogoPage(){
+		sid
+		return "addLogoPage" ;
+	}
+4.struts.xml
+5.跳转到/addLogo.jsp
+	[略]
+
+实现logo的上传
+------------------------
+1.选择logo页面-->提交
+2.SurveyAction.doAddLogo()
+	public String doAddLogo(){
+		sid + 文件
+		//1.实现文件另存到/upload文件夹下
+		//2.更新数据库的路径信息
+		return "designSurveyAction" ;
+	}
+3.略
+4.略
+
+对上传文件加以约束
+-------------------------
+<interceptors>
+	<!-- 注册登陆拦截器 -->
+	<interceptor name="loginInterceptor" class="com.atguigu.surveypark.struts2.interceptor.LoginInterceptor" />
+	<!-- 定义拦截器栈 -->
+	<interceptor-stack name="surveyparkStack">
+		<interceptor-ref name="loginInterceptor" />
+		<interceptor-ref name="defaultStack">
+			<param name="modelDriven.refreshModelBeforeResult">true</param>
+			<!-- 文件大小 -->
+			<param name="fileUpload.maximumSize">60000</param>
+			<!-- 文件扩展名 -->
+			<param name="fileUpload.allowedExtensions">.jpg,.jpeg,.png,.bmp,.gif</param>
+			<!-- 文件内容类型 -->
+			<param name="fileUpload.allowedTypes">image/jpg,image/jpeg,image/pjpeg,image/png,image/gif,image/bmp</param>
+		</interceptor-ref>
+	</interceptor-stack>
+</interceptors>
+
+对错误消息国际化
+----------------------------
+1.创建SurveyAction.properties
+	[struts-core-x.x.x.jar/org.apache.struts/struts-message.properties]
+	struts.messages.error.file.too.large=The file is to large to be uploaded: {0} "{1}" "{2}" {3}
+	struts.messages.error.content.type.not.allowed=Content-Type not allowed: {0} "{1}" "{2}" {3}
+	struts.messages.error.file.extension.not.allowed=File extension not allowed: {0} "{1}" "{2}" {3}
+2.创建临时文件1.txt(记事本编写(gb2312))
+	struts.messages.error.file.too.large=文件太大!
+	struts.messages.error.content.type.not.allowed=类型不对!
+	struts.messages.error.file.extension.not.allowed=扩展名不符!
+3.对1.txt进行转码(ascii码)
+	cmd
+	d:
+	cd xxxx
+	native2ascii -encoding gb2312 1.txt 2.txt
+4.刷新项目,产生一个2.txt文件
+5.删除1.txt文件
+6.重命名2.txt --> SurveyAction_zh_CN.properties
+
+实现动态错误页
+--------------------
+
+
+移动赋值页
+-----------------------
+1.增加属性
+	class Page{
+		...
+		private float orderno ;
+		//get/set
+
+		public void setId(Integer id){
+			this.id = id ;
+			if(id != null){
+				this.orderno = id ;
+			}
+		}
+	}
+
+	Page.hbm.xml
+	<property name="orderno" column="orderno" type="float">
+		<column="orderno" sql-type="decimal(10,5)" />
+	</property>
+
+	Survey.hbm.xml
+	<set name="orders" order-by="orderno">
+2.设计调查-->移动/赋值页面
+3.MoveOrCopyPageAction.toSelectTargetPage()方法
+	public String toSelectTargetPage(){
+		srcPid 
+		this.mySurveys = surveyService.getSurveyWithPages(user);
+			public List<Survey> getSurveyWithPages(User user){
+				String hql = "from Survey s where s.user.id = ?" ;
+				List<Survey> list = surveyDao.findEntityByHQL(hql,user.getId());
+				for(Survey s : list){
+					s.getPages().size();
+				}
+				return list ;
+			}
+		return "moveOrCopyPageListPage" ;
+	}
+4.struts.xml
+	<!-- MoveOrCopyPageAction -->
+	<action name="MoveOrCopyPageAction_*" class="moveOrCopyPageAction" method="{1}">
+		<result name="moveOrCopyPageListPage">/moveOrCopyPageList.jsp</result>
+	</action>
+5.跳转到/moveOrCopyPageList.jsp
+	<>
+
+
+完成移动/复制操作
+-------------------
+1.移动/复制Page的列表页面-->提交
+2.MoveOrCopyPageAction.doMoveOrCopyPage()方法
+	public String doMoveOrCopyPage(){
+		srcPid + targPid + pos + sid
+		surveyService.moveOrCopyPage(srcPid,targPid,pos);
+			public void moveOrCopyPage(Integer srcPid,Integer targPid,int pos){
+				srcPid --> srcPage --> srcSurvey
+				targPid --> targPage --> targSurvey
+				//移动
+				if(srcSurvey.id == targSurvey.id){
+					setOrderno(srcPage,targPage,pos);
+				}
+				//复制
+				else{
+					//深度复制
+					Page newPage = ....;
+					setOrderno(newPage,targPage,pos);
+				}
+			}
+
+			//设置页序
+			public void setOrderno(Page srcPage,Page targPage,int pos){
+				//判断位置0-之前 1-之后
+				//之前
+				if(pos == 0){
+					//是否是首页
+					if(isFirstPage(targPage)){
+						srcPage.setOrderno(targPage.getOrderno() - 0.01f);
+					}
+					else{
+						//取得目标页前一页
+						Page prePage = getPrePage(targPage);
+						srcPage.setOrderno((targPage.getOrderno() + prePage.getOrderno()) / 2);
+					}
+				}
+				//之后
+				else{
+					//是否是尾页
+					if(isLastPage(targPage)){
+						srcPage.setOrderno(targPage.getOrderno() + 0.01f);
+					}
+					else{
+						//取得目标页下一页
+						Page nextPage = getNextPage(targPage);
+						srcPage.setOrderno((targPage.getOrderno() + nextPage.getOrderno()) / 2);
+					}
+				}
+			}
+		return "designSurveyAction" ;
+	}
+3.略
+4.略
+
+深度复制
+---------------------
+/**
+ * 深度复制,复制的整个对象图
+ */
+public static Serializable deeplyCopy(Serializable src){
+	try {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(src);
+		oos.close();
+		baos.close();
+		
+		byte[] bytes = baos.toByteArray();
+		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+		ObjectInputStream ois = new ObjectInputStream(bais);
+		Serializable copy = (Serializable) ois.readObject();
+		ois.close();
+		bais.close();
+		return copy ;
+	} catch (Exception e) {
+		e.printStackTrace();
+	}
+	return null ;
+}
+
+移动复制页面
+-----------------------
+class SurveyServiceImpl ...{
+	...
+	public void moveOrCopyPage(Integer srcPid, Integer targPid, int pos){
+		Page srcPage = this.getPage(srcPid);
+		Survey srcSurvey = srcPage.getSurvey();
+		Page targPage = this.getPage(targPid);
+		Survey targSurvey = targPage.getSurvey();
+		//判断移动/赋值
+		if(srcSurvey.getId().equals(targSurvey.getId())){
+			setOrderno(srcPage,targPage,pos);
+		}
+		//复制
+		else{
+			//******强行初始化问题集合,否则深度复制的页面对象没有问题集合****
+			srcPage.getQuestions().size();
+			//深度复制
+			Page copyPage = (Page) DataUtil.deeplyCopy(srcPage);
+			//设置页面和目标调查关联
+			copyPage.setSurvey(targSurvey);
+			//保存页面
+			pageDao.saveEntity(copyPage);
+			for(Question q : copyPage.getQuestions()){
+				questionDao.saveEntity(q);
+			}
+			setOrderno(copyPage,targPage,pos);
+		}
+				
+	}
+}

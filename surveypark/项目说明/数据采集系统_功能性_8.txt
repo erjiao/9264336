@@ -1,0 +1,372 @@
+日志管理
+--------------------
+1.aop环绕通知
+2.导航栏-->日志管理
+3.LogAction.findAllLogs()
+	public String findAllLogs(){
+		this.allLogs = logService.findAllEntities();
+		return "logListPage" ;
+	}
+4.struts.xml
+	<action name="LogAction_*" class="logAction" method="{1}">
+		<param name="logListPage">/logList.jsp</param>
+	</action>
+5.跳转到/logList.jsp
+
+
+class StringUtil{
+
+	...
+	//获得字符串的描述信息
+	public static String getDescString(String str){
+		if(str != null && str.trim().length > 30){
+			return str.subString(0,30);
+		}
+		return str ;
+	}
+}
+
+logList.jsp
+<s:property value="@com.atguigu.surveypark.StringUtil@getDescString(operParam)" />
+
+大数据:
+-----------------------
+1.分表
+	动态表:logs_2013_9 logs_2013_10 调度
+2.分库
+
+使用spring的quartz调度,动态生成日志表
+---------------------------------------
+1.引入quartz类库
+	com.springsource.org.quartz-1.6.2.jar
+2.创建动态生成日志表的任务.
+	public class CreateLogTablesTask extends QuartzJobBean {
+
+		
+		private LogService logService ;
+		//注入LogService
+		public void setLogService(LogService logService) {
+			this.logService = logService;
+		}
+
+		/**
+		 * 生成日志表
+		 */
+		protected void executeInternal(JobExecutionContext arg0)
+				throws JobExecutionException {
+			//下一月
+			String tableName = LogUtil.generateLogTableName(1 );
+			logService.createLogTable(tableName);
+			
+			//下两月
+			tableName = LogUtil.generateLogTableName(2);
+			logService.createLogTable(tableName);
+			
+			//下三月
+			tableName = LogUtil.generateLogTableName(3);
+			logService.createLogTable(tableName);
+		}
+	}
+
+	[配置石英任务---schedules.xml]
+	<?xml version="1.0" encoding="UTF-8"?>
+	<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://www.springframework.org/schema/beans 
+							http://www.springframework.org/schema/beans/spring-beans.xsd">
+		<!-- 任务明细bean -->
+		<bean id="jobDetailBean" class="org.springframework.scheduling.quartz.JobDetailBean">
+			<!-- 通过任务类指定石英任务 -->
+			<property name="jobClass" value="com.atguigu.surveypark.scheduler.CreateLogTablesTask" />
+			<property name="jobDataMap">
+				<map>
+					<entry key="logService" value-ref="logService" />
+				</map>
+			</property>
+		</bean>
+		
+		<!-- cron触发器bean,设置石英任务的调度策略 -->
+		<bean id="cronTriggerBean" class="org.springframework.scheduling.quartz.CronTriggerBean">
+			<property name="jobDetail" ref="jobDetailBean" />
+			<!-- cron表达式 -->
+			<property name="cronExpression">
+				<value>0 0 15 15 * ?</value>
+			</property>
+		</bean>
+		
+		<!-- 调度工厂bean,激活触发器运行 -->
+		<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+			<property name="triggers">
+				<list>
+					<ref bean="cronTriggerBean"/>
+				</list>
+			</property>
+		</bean>
+	</beans>
+
+
+	[配置web.xml一同加载schedules.xml文件]
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>classpath:beans.xml,classpath:schedules.xml</param-value>
+	</context-param>
+
+使用spring监听器实现启动时创建连续三张日志表
+----------------------------------------------
+/**
+ * 初始化日志表监听器
+ */
+@Component
+@SuppressWarnings("rawtypes")
+public class IniLogTablesListener implements ApplicationListener {
+	@Resource
+	private LogService logService ;
+	
+	public void onApplicationEvent(ApplicationEvent arg0) {
+		//上下文刷新事件
+		if(arg0 instanceof ContextRefreshedEvent){
+			String tableName = LogUtil.generateLogTableName(0);
+			logService.createLogTable(tableName);
+			
+			tableName = LogUtil.generateLogTableName(1);
+			logService.createLogTable(tableName);
+			
+			tableName = LogUtil.generateLogTableName(2);
+			logService.createLogTable(tableName);
+			System.out.println("初始化日志表完成!!!");
+		}
+	}
+}
+
+改造log.saveEntity()方法,向当前日志表插入数据.
+---------------------------------------------
+	/**
+	 * 重写该方法,动态插入日志记录(动态表) 
+	 */
+	public void saveEntity(Log t) {
+		//insert into logs_2013_9()
+		String sql = "insert into " 
+				+ LogUtil.generateLogTableName(0) 
+				+ "(operator,opername,operparams,operresult,resultmsg,opertime) "
+				+ "values(?,?,?,?,?,?)" ;
+		this.executeSQL(sql, t.getOperator(),
+							t.getOperName(),
+							t.getOperParams(),
+							t.getOperResult(),
+							t.getResultMsg(),
+							t.getOperTime());
+	}
+	
+查询最近月份的日志表,从当前月份开始往前推算
+通过元数据(information_schema数据库)信息查询表是否存在.
+-------------------------------------------
+	/**
+	 * 查询最近指定月份数的日志
+	 */
+	public List<Log> findNearestLogs(int n){
+		String tableName = LogUtil.generateLogTableName(0);
+		//
+		//查询出最近的日志表名称
+		String sql = "select table_name from information_schema.tables "
+				+ "where table_schema='lsn_surveypark001' "
+				+ "and table_name like 'logs_%' "
+				+ "and table_name <= '"+tableName+"' "
+				+ "order by table_name desc limit 0," + n ;
+		
+		List list = this.executeSQLQuery(sql);
+		//查询最近若干月内的日志
+		String logSql = "" ;
+		String logName = null ;
+		for(int i = 0 ; i < list.size() ; i ++){
+			logName = (String) list.get(i);
+			if(i == (list.size() - 1)){
+				logSql = logSql + " select * from " + logName ;
+			}
+			else{
+				logSql = logSql + " select * from " + logName + " union " ;
+			}
+		}
+		return this.executeSQLQuery(logSql);
+	}
+
+分库:
+---------------
+1.竖直分库
+	
+2.水平分库
+	(相)同(结)构的.
+
+使用分布式数据库,实现answers的分存储.(接近于竖直)
+------------------------------------
+1.创建从库(lsn_surveypar001-1)
+	创建answers表(唯一一张表).
+2.beans.xml中配置多个数据源
+	<!-- 配置(主库)数据源 -->
+	<bean id="dataSource-main" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${jdbc.driverclass}" />
+		<property name="jdbcUrl" value="${jdbc.url}" />
+		<property name="user" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+		
+		<property name="maxPoolSize" value="${c3p0.pool.size.max}" />
+		<property name="minPoolSize" value="${c3p0.pool.size.min}" />
+		<property name="initialPoolSize" value="${c3p0.pool.size.ini}" />
+		<property name="acquireIncrement" value="${c3p0.pool.size.increment}" />
+	</bean>
+	
+	<!-- 配置从库数据源 -->
+	<bean id="dataSource-1" parent="dataSource-main">
+		<property name="jdbcUrl" value="jdbc:mysql://localhost:3306/lsn_surveyparlk001_1" />
+	</bean>
+3.自定义数据源路由器
+	public class SurveyparkDataSourceRouter extends AbstractRoutingDataSource {
+
+		protected Object determineCurrentLookupKey() {
+			return null;
+		}
+	}
+
+4.配置数据源路由器
+	<!-- 本地回话工厂bean(spring整合hibernate的核心入口) -->
+	<bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:hibernate.cfg.xml" />
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:com/atguigu/surveypark/model</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 将数据源路由器注入给LocalSessionFactoryBean -->
+	<bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceRouter" />
+		...
+	</bean>
+
+
+5.利用ThreadLocal技术实现token机制,目的在action和router之间实现消息传递.
+-------------------------------------------------------------------------
+	/**
+	 * 令牌
+	 */
+	public class SurveyparkToken {
+		//
+		private static 	ThreadLocal<SurveyparkToken> l = new ThreadLocal<SurveyparkToken>();
+		private Survey survey ;
+		public Survey getSurvey() {
+			return survey;
+		}
+		public void setSurvey(Survey survey) {
+			this.survey = survey;
+		}
+		/**
+		 * 将指定的令牌对象绑定到当前线程
+		 */
+		public static void bindToken(SurveyparkToken token){
+			l.set(token);
+		}
+		/**
+		 * 解除当前线程绑定的令牌
+		 */
+		public static void unbindToken(){
+			l.remove();
+		}
+		/**
+		 * 从当前线程获得绑定的令牌
+		 */
+		public static SurveyparkToken getCurrentToken(){
+			return l.get();
+		}
+	}
+
+
+7.使用spring的缓存抽象,对service进行缓存,提升性能.
+----------------------------------------------------
+1.引入缓存供应商--ehcache.类库
+	com.springsource.net.sf.ehcache-1.6.2.jar
+2.配置ehcache缓存的过期策略
+	[config/ehcache.xml]
+	<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+		xsi:noNamespaceSchemaLocation="../config/ehcache.xsd">
+		<diskStore path="java.io.tmpdir"/>
+		<defaultCache
+				maxElementsInMemory="10000"
+				eternal="false"
+				timeToIdleSeconds="120"
+				timeToLiveSeconds="120"
+				overflowToDisk="true"
+				maxElementsOnDisk="10000000"
+				diskPersistent="false"
+				diskExpiryThreadIntervalSeconds="120"
+				memoryStoreEvictionPolicy="LRU"
+				/>
+	</ehcache>
+
+3.
+
+
+4.
+
+
+rs.findAllEntities(); ---> 0
+
+
+spring的远程调用
+------------------------
+1.server
+	
+2.
+3.
+4.
+5.
+6..
+
+在项目中对统计服务进行公开,和第三方系统进行整合
+------------------------------------------------
+1.引入类库
+	org.springframework.web.servlet-3.1.0.RELEASE.jar
+2.配置web.xml文件的DispatcherServlet
+	<!-- 配置spring的远程调用 -->
+	<servlet>
+		<servlet-name>service</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>service</servlet-name>
+		<url-pattern>*.service</url-pattern>	
+	</servlet-mapping>
+3.创建config/spring-remote.xml
+	<?xml version="1.0"?>
+	<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+		xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+		xmlns:cache="http://www.springframework.org/schema/cache"
+		xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-3.1.xsd ">
+		<!-- service导出器,将pojo转换成spring所需的controller对象 -->
+		<bean name="/ss.service" class="org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter">
+			<property name="serviceInterface">
+				<value>com.atguigu.surveypark.service.StatisticsService</value>
+			</property>
+			<property name="service" ref="statisticsService" />
+		</bean>	
+	</beans>
+4.
+
+
+项目描述:
+-------------------------------
+同时,系统还采用web service技术,将调查服务对外公开,可实现第三方系统的无缝整合.
+系统通过对service进行缓存,能够大量降低数据库负载,从而提高程序性能.
+技术要点:
+	1.系统采用ssh架构,便于维护和扩展.
+	2.系统wizard方案,供参与人员作答,避免用户反感,界面更加友好.
+	3.使用java seriliaze技术实现deeply copy,便于数据移植.
+	4.通过struts2 jfreechart plugin同jfreechat集成,生成各种图表.
+	5.使用poi导出excel文件,供决策人员参考.
+	6.采用bitwise技术实现权限控制,利用interceptor实现粗粒度控制以及采用tag replace实现细粒度控制.
+	   采用二位运算能够是的权限运算更加快捷,而且极大地session存储量,有效利用服务器资源.
+	7.使用spring http invoker实现远程调用,和第三方基于java的应用实现更高效率的传输.
+	//8.系统中通过cxf webservice引擎,将统计服务对外公开,可实现第三方系统的无缝整合.
+	9.利用aop + scheduler采用动态表实现日志管理.
+	10.使用RoutingDatasource + token实现分库处理.

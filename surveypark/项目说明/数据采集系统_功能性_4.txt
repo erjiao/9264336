@@ -1,0 +1,134 @@
+参与调查
+-----------------
+1.导航栏-->参与调查
+2.EngageSurveyAction.findAllAvailableSurveys()方法
+	public String findAllAvailableSurveys(){
+		this.surveys = surveyService.findAllAvailableSurveys();
+			public List<Survey> findAllAvailableSurveys(){
+				String hql = "from Survey s where s.closed = ?" ;
+				return surveyDao.findEntityByHQL(hql,false);
+			}
+		return "engageSurveyListPage" ;
+	}
+3.struts.xml
+	<!-- EngageSurveyAction -->
+	<action name="EngageSurveyAction_*" class="engageSurveyAction" method="{1}">
+		<result name="engageSurveyListPage">/engageSurveyList.jsp</result>
+	</action>
+4.跳转到/.jsp
+
+/**
+ * 获得图片的url地址
+ */
+public String getImageUrl(String path){
+	if(ValidateUtil.isValid(path)){
+		String absPath = sc.getRealPath(path);
+		File f = new File(absPath);
+		if(f.exists()){
+			// /lsn_surveypark001/upload/xxx.jpg
+			return sc.getContextPath() + path ;
+		}
+	}
+	return sc.getContextPath() + "/question.bmp"  ;
+}
+
+点击调查进行参与
+-------------------------
+1.参与调查视图页面-->点击调查
+2.EngageSurveyAction.entry()方法
+	public String entry(){
+		sid
+		//查询调查首页
+		this.currPage = surveyService.getFirstPage(sid);
+			public Page getFirstPage(Integer sid){
+				String hql = "from Page p where p.survey.id = ? order by p.orderno asc";
+				List<Page> list = pageDao.findEntityByHQL(sid);
+				Page p = list.get(0);
+				p.getQuestions().size();//初始化问题集合
+				p.getSurvey().getTitle();//初始化调查对象
+				return p ;
+			}
+		//查询当前调查存放到session中.
+		sessionMap.put("current_survey",currPage.getSurvey());
+		return "engageSurveyPage" ;
+	}
+3.struts.xml
+4.跳转到/engageSurvey.jsp
+	[类似于designSurvey.jsp]
+
+最大页序和最小页序的处理方式
+----------------------------------
+1.
+	class Survey ...{
+		...
+		private float minOrderno ;
+		private float maxOrderno ;
+		//get/set
+	}
+
+	Survey.hbm.xml
+	<property name="minOrderno" formula="(select min(p.orderno) from pages p where p.surveyid = id)" />
+	<property name="maxOrderno" formula="(select min(p.orderno) from pages p where p.surveyid = id)" />
+
+
+处理参与调查
+---------------------
+1.参与调查页面-->上一步/下一步/完成/退出
+2.EngageSurveyAction.doEngageSurvey()
+	public String doEngageSurvey(){
+		String submitName = getSubmitName();
+		if(上一步?){
+			mergeParamsIntoSession();
+			this.currPage = surveyService.getPrePage(currPid);
+			return "engageSurveyPage" ;
+		}
+		else if(下一步?){
+			mergeParamsIntoSession();
+			this.currPage = surveyService.getNextPage(currPid);
+			return "engageSurveyPage" ;
+		}
+
+		else if(完成?){
+			mergeParamsIntoSession();
+			//TODO答案入库
+			clearSessionData();
+			return "engageSurveyAction" ;
+		}
+		else if(退出?){
+			clearSessionData();
+			return "engageSurveyAction" ;
+		}
+	}
+
+
+	public String entry(){
+		....
+		//将存放所有参数的大map -->session中(用户保存答案和回显).
+		sessionMap.put(ALL_PARAMS_MAP,new HashMap<Integer,Map<String,String[]>>());
+	}
+
+删除最后一个页面时,会出现无法将null赋值给基本类型的属性 for minOrderno来说.
+-----------------------
+1.每个调查至少有一个页面,删除时需要做判定.
+2.
+3.
+
+//问题统计模型
+class QuestionStatisticsModel{
+	private Question q ;
+	private int count ;
+	private List<OptionStatisticsModel> osms = ...
+}
+
+//选项统计模型
+class OptionStatisticsModel{
+	private int optionIndex ;
+	private String optionLabel ;
+	private int count ;
+
+	private int matrixRowIndex ;
+	private String matrixRowLabel ;
+	...
+}
+
+统计回答问题的总人数

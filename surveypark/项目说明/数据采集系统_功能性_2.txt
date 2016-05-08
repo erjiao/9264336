@@ -1,0 +1,167 @@
+设计调查:
+---------------------
+1.调查列表-->设计
+2.SurveyAction.designSurvey()
+	public String designSurvey(){
+		1.接受sid
+		2.this.model = surveyService.getSurvey(sid);
+			public Survey getSurvey(Integer sid){
+				return surveyDao.getEntity(sid);
+			}
+		3.return "designSureyPage" ;
+	}
+3.struts.xml
+	略
+4.跳转到/designSurvey.jsp
+	略
+
+struts2的action中为model赋值的问题:
+---------------------------------------
+1.手动压栈.
+	1.耦合度高.
+	2.不推荐直接操作vs
+	3.栈中的模型对象过多
+	valueStack.push(newModel);
+2.通过手动将新模型的属性全部赋值给旧模型.
+	性能比较差
+	oldModel.setXxxx(newModel.getXxxx());
+	...
+3.使用paramsPrepareParamsStack + preparable拦截器配合使用
+	prepare拦截器先执行,先为model赋值,后调用modelDriven,在栈顶压入的model是新模型,
+	但是需要注意在prepare拦截器还要进行传递参数,defaultstack在prepare不能完成传参,
+	因此可以改换成paramsPrepareParamsStack来达到此目的.
+4.使用刷新机制,进行赋值,直接在action中为model赋值,使用刷新机制即可.(源码 ModelDrivenInterceptor)
+	原理: struts2 的拦截器 包括预处理跟后处理, 在预处理中将oldModel 压入栈顶, 在后处理中得到newModel, 如oldModel 与 newModel 不相等
+	      则移除oldModel, 压入newModel
+	<interceptors>
+		<!-- 注册登陆拦截器 -->
+		<interceptor name="loginInterceptor" class="com.atguigu.surveypark.struts2.interceptor.LoginInterceptor" />
+		<!-- 定义拦截器栈 -->
+		<interceptor-stack name="surveyparkStack">
+			<interceptor-ref name="loginInterceptor" />
+			<interceptor-ref name="defaultStack">
+				<param name="modelDriven.refreshModelBeforeResult">true</param>
+			</interceptor-ref>
+		</interceptor-stack>
+	</interceptors>
+
+
+解决懒加载异常:
+-----------------------
+1.不用懒加载
+2.一劳永逸解决懒加载问题.使用spring的openSessionInViewFilter.
+	<!-- openSessionInViewFilter,改过滤器在view渲染时始终开启session,一劳永逸解决hibernate的懒加载问题,
+	     该过滤器必须配置在struts2过滤器之前,不推荐使用(性能问题)
+	<filter>
+		<filter-name>openSessionInViewFilter</filter-name>
+		<filter-class>org.springframework.orm.hibernate3.support.OpenSessionInViewFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>openSessionInViewFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	-->
+	
+3.强行在service层面上初始化代理对象.
+	public Survey getSurveyWithChildren(Integer sid){
+		//Survey s = surveyDao.getEntity(sid);
+		//降低耦合度
+		Survey s = this.getSurvey(sid);
+		//强行初始化pages和questions集合
+		for(Page p : s.getPages()){
+			p.getQuestions().size();
+		}
+		return s; 
+	}
+	
+	高内聚,低耦合.
+	
+
+编辑调查
+-----------------
+1.设计调查-->编辑调查
+2.SurveyAction.editSurvey()
+	public String editSurvey(){
+		sid
+		this.model = surveyService.getSurvey(sid);
+		return "editSurveyPage" ;
+	}
+3.struts.xml
+	<result name="editSurveyPage">/editSurvey.jsp</result>
+4.跳转到/editSurvey.jsp
+	[略]
+
+更新调查
+---------------
+1.编辑调查页面-->提交
+2.SurveyAction.updateSurvey()
+	public String updateSurvey(){
+		this.sid = model.getId();
+		model
+		surveyService.updateSurvey(model);
+			public void updaetSurvey(Survey s){
+				surveyDao.updateEntity(s);
+			}
+		return "designSurveyAction" ;
+	}
+3.struts.xml
+	<result name="designSurveyAction" type="redirectAction">
+		<param name="namespace">/</result>
+		<param name="actionName">SurveyAction_designSurvey</param>
+		<param name="sid">${sid}</param>
+	</result>
+4.重定向到/designSurvey.jsp
+	[略]
+
+添加页面
+----------------
+1.设计调查-->添加页面
+2.PageAction.toAddPage()
+	public String toAddPage(){
+		sid
+		return "addPagePage" ;
+	}
+3.struts.xml
+	<action name="PageAction_*" class="pageAction" method="{1}">
+		<result name="addPagePage">/editPage.jsp</result>
+	</action>
+4.跳转到/editPage.jsp
+	[略]
+
+保存/更新页面
+------------------
+1.编辑page-->提交
+2.PageAction.saveOrUpdatePage()
+	public String saveOrUpdatePage(){
+		model + sid 
+		//维护关联关系
+		model.setSurvey(new Survey(sid));
+		surveyService.saveOrUpdatePage(model);
+			public void saveOrUpdaetPage(Page p){
+				pageDao.saveOrUpdateEntity(p);
+			}
+		return "designSurveyAction" ;
+	}
+3.struts.xml
+	 改造designSurveyAction成全局结果.
+4.略
+5.设置page集合按照id排序
+	[Survey.hbm.xml]
+	<set name="pages" inverse="true" order-by="id">
+
+编辑页面
+------------------------
+1.设计调查 --->编辑页面
+2.PageAction.editPage()
+	public String editPage(){
+		sid + pid
+		this.model = surveyService.getPage(pid);
+			public Page getPage(Integer pid){
+				return pageDao.getEntity(pid);
+			}
+		return "editPagePage" ;
+	}
+3.struts.xml
+	<result name>
+4.跳转到/editPage.jsp
+	[略]

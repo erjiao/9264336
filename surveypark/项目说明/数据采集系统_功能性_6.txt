@@ -1,0 +1,363 @@
+权限管理:三者之间均为多对多关联,这里做的是单向关联.
+---------------------------------------------------
+class User(*)		--->		  (*)class Role(*)     --->              (*)class Right                        
+{									 {                                 	   {                                 
+									                                   	      ...                       
+																			  int rightPos ; //权限位,从0开始
+	...								 	...                           	   	  long rightCode ;//权限码(1<<n)                         
+									                                   	                                     
+	Set<Role> roles = new ...		 	Set<Right> rights = new ...        	
+}									 }                                 	   }                                 
+
+
+映射文件
+------------------------
+	[User.hbm.xml]
+	<?xml version="1.0"?>
+	<!DOCTYPE hibernate-mapping PUBLIC 
+		"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+		"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	<hibernate-mapping>
+		<class name="com.atguigu.surveypark.model.User" table="users">
+			<id name="id" column="id" type="integer">
+				<generator class="identity" />
+			</id>
+			<property name="email" column="email" type="string" length="50" />
+			<property name="password" column="password" type="string" length="50" />
+			<property name="nickName" column="nickname" type="string" length="50" />
+			<property name="regDate" column="regdate" type="timestamp"  update="false"/>
+			<set name="roles" table="user_role_link">
+				<key column="userid" />
+				<many-to-many class="com.atguigu.surveypark.model.security.Role" column="roleid" />
+			</set>
+		</class>
+	</hibernate-mapping>
+
+	[Role.hbm.xml]
+	<?xml version="1.0"?>
+	<!DOCTYPE hibernate-mapping PUBLIC 
+		"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+		"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	<hibernate-mapping package="com.atguigu.surveypark.model.security">
+		<class name="Role" table="roles">
+			<id name="id" column="id" type="integer">
+				<generator class="identity" />
+			</id>
+			<property name="roleName" column="rolename" type="string" length="50" />
+			<property name="roleDesc" column="roledesc" type="string" length="200" />
+			<property name="roleValue" column="rolevalue" type="string" length="20" />
+			
+			<!-- 映射role到Right之间多对多关联关系 -->
+			<set name="rights" table="role_right_link">
+				<key column="roleid" />
+				<many-to-many class="Right" column="rightid" />
+			</set>
+		</class>
+	</hibernate-mapping>
+
+	[Right.hbm.xml]
+	<?xml version="1.0"?>
+	<!DOCTYPE hibernate-mapping PUBLIC 
+		"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+		"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	<hibernate-mapping package="com.atguigu.surveypark.model.security">
+		<class name="Right" table="rights">
+			<id name="id" column="id" type="integer">
+				<generator class="identity" />
+			</id>
+			<property name="rightUrl" column="righturl" type="string" length="50" />
+			<property name="rightName" column="rightname" type="string" length="200" />
+			<property name="rightDesc" column="rightdesc" type="string" length="200" />
+			<property name="rightPos" column="rightpos" type="integer" update="false"/>
+			<property name="rightCode" column="rightcode" type="long" update="false" />
+		</class>
+	</hibernate-mapping>
+
+表结构
+-------------------------
+[users]
++----------+-------------+------+-----+---------+----------------+
+| Field    | Type        | Null | Key | Default | Extra          |
++----------+-------------+------+-----+---------+----------------+
+| id       | int(11)     | NO   | PRI | NULL    | auto_increment |
+| email    | varchar(50) | YES  |     | NULL    |                |
+| password | varchar(50) | YES  |     | NULL    |                |
+| nickname | varchar(50) | YES  |     | NULL    |                |
+| regdate  | datetime    | YES  |     | NULL    |                |
++----------+-------------+------+-----+---------+----------------+
+
+[roles表]
++-----------+--------------+------+-----+---------+----------------+
+| Field     | Type         | Null | Key | Default | Extra          |
++-----------+--------------+------+-----+---------+----------------+
+| id        | int(11)      | NO   | PRI | NULL    | auto_increment |
+| rolename  | varchar(50)  | YES  |     | NULL    |                |
+| roledesc  | varchar(200) | YES  |     | NULL    |                |
+| rolevalue | varchar(20)  | YES  |     | NULL    |                |
++-----------+--------------+------+-----+---------+----------------+
+
+[rights]表
++-----------+--------------+------+-----+---------+----------------+
+| Field     | Type         | Null | Key | Default | Extra          |
++-----------+--------------+------+-----+---------+----------------+
+| id        | int(11)      | NO   | PRI | NULL    | auto_increment |
+| righturl  | varchar(50)  | YES  |     | NULL    |                |
+| rightname | varchar(200) | YES  |     | NULL    |                |
+| rightdesc | varchar(200) | YES  |     | NULL    |                |
+| rightpos  | int(11)      | YES  |     | NULL    |                |
+| rightcode | bigint(20)   | YES  |     | NULL    |                |
++-----------+--------------+------+-----+---------+----------------+
+
+[user_role_link]
++--------+---------+------+-----+---------+-------+
+| Field  | Type    | Null | Key | Default | Extra |
++--------+---------+------+-----+---------+-------+
+| userid | int(11) | NO   | PRI | NULL    |       |
+| roleid | int(11) | NO   | PRI | NULL    |       |
++--------+---------+------+-----+---------+-------+
+
+[role_right_link]
++---------+---------+------+-----+---------+-------+
+| Field   | Type    | Null | Key | Default | Extra |
++---------+---------+------+-----+---------+-------+
+| roleid  | int(11) | NO   | PRI | NULL    |       |
+| rightid | int(11) | NO   | PRI | NULL    |       |
++---------+---------+------+-----+---------+-------+
+
+权限管理
+----------------
+1.导航栏--->权限管理
+2.RightAction.findAllRights();
+	public String findAllRights(){
+		this.rights = rightService.findAllEntities();
+		return "rightListPage" ;
+	}
+3.struts.xml
+	<!-- RightAction -->
+	<action name="RightAction_*" class="rightAction" method="{1}">
+		<result name="rightListPage">/rightList.jsp</result>
+	</action>
+4.跳转到
+	[略]
+
+添加权限
+---------------------
+1.权限列表-->添加权限
+2.RightAction.toAddRightPage();
+	public String toAddRightPage(){
+		return "addRightPage" ;
+	}
+3.struts.xml
+	<result name="addRightPage">/editRight.jsp</result>
+4.略
+
+保存更新调查
+------------------
+1.添加权限页面-->提交
+2.RightAction.saveOrUpdateRight()
+	public String saveOrUpdateRight(){
+		1.model
+		rightService.saveOrUpdateRight(model);
+			public void saveOrUpdateRight(Right r){
+				//插入操作
+				int pos = 0 ;
+				long code = 1L ; 
+				if(r.getId() == null){
+					String hql = "from Right r order by r.rightPos desc,r.rightCode desc" ;
+					List<Right> rights = this.findEntityByHQL(hql);
+					if(!ValidateUtil.isValid(rights)){
+						pos = 0;
+						code = 1L ;
+					}
+					else{
+						//得到最上面的right
+						Right top = rights.get(0);
+						int topPos = top.getRightPos();
+						long topCode = top.getRightCode();
+						//判断权限码是否到达最大值
+						if(topCode >= (1L << 60)){
+							pos = topPos + 1 ;
+							code = 1 ;
+						}
+						else{
+							pos = topPos ;
+							code = topCode << 1 ;
+						}
+					}
+					model.setRightPos(pos);
+					model.setRightCode(code);
+				}
+				this.saveOrUpdateEntity(model);
+			}
+		return "findAllRightAction" ;
+		
+	}
+3.
+4.
+
+编辑权限
+---------------
+1.权限列表-->编辑
+2.RightAction.editRight();
+	public String editRight(){
+		rightId ;
+		this.model = rightService.getEntity(rightId);
+		return "editRightPage" ;
+	}
+3.
+4.
+
+删除权限
+------------------
+1.删除权限
+2.RightAction.deleteRight();
+	public String deleteRight(){
+		rightId
+		rightService.deleteEntity(new Right(rightId));
+	}
+3.
+4.
+
+
+使用拦截器捕获所有的url
+------------------------
+public class CatchUrlInterceptor implements Interceptor {
+
+	private static final long serialVersionUID = 6563408965618840075L;
+
+	public void destroy() {
+	}
+
+	public void init() {
+	}
+
+	public String intercept(ActionInvocation invocation) throws Exception {
+		ActionProxy proxy = invocation.getProxy();
+		//名字空间
+		String ns = proxy.getNamespace();
+		//actionName
+		String actionName = proxy.getActionName();
+		if(!ValidateUtil.isValid(ns)
+				||ns.equals("/")){ 
+			ns = "" ;
+		}
+		String url = ns + "/" + actionName ;
+		
+		//取得在applicationspring容器.
+		//ApplicationContext ac = (ApplicationContext) invocation.getInvocationContext().getApplication().get(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
+		//
+		ServletContext sc = ServletActionContext.getServletContext();
+		ApplicationContext ac = WebApplicationContextUtils.getWebApplicationContext(sc);
+		RightService rs = (RightService) ac.getBean("rightService");
+		
+		rs.appendRightByURL(url);
+		return invocation.invoke();
+	}
+}
+
+		<interceptors>
+			<!-- 注册登陆拦截器 -->
+			<interceptor name="loginInterceptor" class="com.atguigu.surveypark.struts2.interceptor.LoginInterceptor" />
+			<!-- 捕获url拦截器 -->
+			<interceptor name="catchUrlInterceptor" class="com.atguigu.surveypark.struts2.interceptor.CatchUrlInterceptor" />
+			<!-- 定义拦截器栈 -->
+			<interceptor-stack name="surveyparkStack">
+				<interceptor-ref name="catchUrlInterceptor" />
+				<interceptor-ref name="loginInterceptor" />
+				<interceptor-ref name="defaultStack">
+					<param name="modelDriven.refreshModelBeforeResult">true</param>
+					<!-- 文件大小 -->
+					<param name="fileUpload.maximumSize">60000</param>
+					<!-- 文件扩展名 -->
+					<param name="fileUpload.allowedExtensions">.jpg,.jpeg,.png,.bmp,.gif</param>
+					<!-- 文件内容类型 -->
+					<param name="fileUpload.allowedTypes">image/jpg,image/jpeg,image/pjpeg,image/png,image/gif,image/bmp</param>
+				</interceptor-ref>
+			</interceptor-stack>
+		</interceptors>
+
+批量修改权限
+-----------------
+1.权限列表-->提交
+2.RightAction.batchUpdateRights()
+	public String batchUpdateRights(){
+		1.allRights
+		2.rightService.batchUpdateRights(allRights);
+			public void batchUpdateRights(List<Right> rights){
+				String hql = "update Right r set r.rightName = ? where r.id = ?" ;
+				if(ValidateUtil.isValid(rights)){
+					for(Right r  : rights){
+						this.batchEntityByHQL(hql,r.getRightName(),r.getId());
+					}
+				}
+			}
+		3.return "findAllRightsAction" ;
+	}
+3.略
+4.略
+
+角色管理
+ --------------------
+1.导航栏-->角色管理
+2.RoleAction.findAllRoles()
+	public String findAllRoles(){
+		this.allRoles = roleService.findAllEntities();
+		return "roleListPage" ;
+	}
+3.struts.xml
+	<action name="RoleAction_*" class="roleAction" method="{1}">
+		<result name="roleListPage">/roleList.jsp</result>
+	</action>
+4.
+
+添加角色
+--------------
+1.角色列表-->添加角色
+2.RoleAction.toAddRolePage();
+	public String toAddRolePage(){
+		this.noOwnRights = rightService.findAllEntities();
+		return "addRolePage" ;
+	}
+3.struts.xml
+	
+4.跳转到/editRole.jsp
+	<s:form>
+		<s:textfield name="roleName|roleValue|roleDesc" />
+		....
+		<!-- 左侧列表:Role.rights集合绑定---角色拥有的权限列表 -->
+		<s:select id="left" list="rights" listKey="id" listValue="rightName" multiple="true"/>
+
+		<!-- 右侧列表:同RoleAction.noOwnRights集合绑定---角色没有的权限列表 -->
+		<s:select id="right" list="noOwnRights" listKey="id" listValue="rightName" multiple="true"/>
+	</s:form>
+
+保存更新角色
+-------------------
+1.添加角色页面-->提交
+2.RoleAction.saveOrUpdateRole()
+	public String saveOrUpdateRole(){
+		model + ownRightIds(Integer[])
+		roleService.saveOrUdpateRole(model,ownRights);
+			public void saveOrUpdateRole(Role r ,Integer[] ids){
+				//判断ids是否有效-->
+				if(!ValidateUtil.isValid(ids)){
+					r.getRights().clear();
+				}
+				//有权限
+				else{
+					List<Right> rights = rightService.findRightsInRange(ids);
+						public List<Right> findRightsInRange(Integer[] ids){
+							if(ValidateUtil.isValid(ids)){
+								String hql = "from Right r where r.id in ("+StringUtil.arr2Str(ids)+")" ;
+								return this.findEntitiesByHQL(hql);							
+							}
+							return null ;
+						}
+					r.setRights(rights);
+				}
+			}
+		return "findAllRolesAction" ;
+		
+	}
+3.
+4.
