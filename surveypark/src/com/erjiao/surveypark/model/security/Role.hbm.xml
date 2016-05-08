@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="com.erjiao.surveypark.model.security">
+	<class name="Role" table="SURVEYPARK_ROLES">
+		<id name="id" column="ID" type="integer">
+			<generator class="sequence">
+				<param name="sequence">sq_surveypark_roleid</param>
+			</generator>
+		</id>
+		<property name="roleName" column="ROLENAME" type="string" length="50"></property>
+		<property name="roleDesc" column="ROLEDESC" type="string" length="200"></property>
+		<property name="roleValue" column="ROLEVALUE" type="string" length="20"></property>
+		
+		<!-- 映射Role 到 Right 之间多对多关联关系 -->
+		<set name="rights" table="role_right_link" lazy="false">
+			<key column="ROLEID"></key>
+			<many-to-many class="Right" column="RIGHTID"></many-to-many>
+		</set>
+	</class>
+</hibernate-mapping>

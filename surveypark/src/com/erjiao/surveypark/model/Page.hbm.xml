@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping package="com.erjiao.surveypark.model">
+	
+	<class name="Page" table="SURVEYPARK_PAGES">
+		<id name="id" column="id" type="integer">
+			<generator class="sequence">
+				<param name="sequence">sq_surveypark_pageid</param>
+			</generator>
+		</id>
+		<property name="title" column="TITLE" type="string" length="50"></property>
+		<property name="description" column="DESCRIPTION" type="string" length="100"></property>
+		<!-- cloumn 属性跟子元素是互斥的, 只能用其一  -->
+		<property name="orderno" type="float">
+			<!-- 可以显示指定字段类型 -->
+			<column name="ORDERNO" sql-type="decimal(10,5)"></column>
+		</property>
+		
+		<!-- 映射从 Page 到 Survey 之间多对一关联关系 -->
+		<many-to-one name="survey" class="Survey" column="SURVEYID"></many-to-one>
+		
+		<!-- 映射从 Page 到 Question 之间一对多关联关系 -->
+		<set name="questions" inverse="true" order-by="id">
+			<key column="PAGEID"></key> <!-- 一个页面有多少个question, 通过pageid查 -->
+			<one-to-many class="Question"/>
+		</set>
+	</class>
+	
+</hibernate-mapping>

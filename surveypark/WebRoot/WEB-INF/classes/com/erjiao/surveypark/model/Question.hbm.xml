@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping package="com.erjiao.surveypark.model">
+	
+	<class name="Question" table="SURVEYPARK_QUESTIONS">
+		<id name="id" column="id" type="integer">
+			<generator class="sequence">
+				<param name="sequence">sq_surveypark_questionid</param>
+			</generator>
+		</id>
+		<property name="questionType" column="QUESTIONTYPE" type="integer"></property>
+		<property name="title" column="TITLE" type="string" length="100"></property>
+		<property name="options" column="OPTIONS" type="string" length="200"></property>
+		<property name="other" column="OTHER" type="boolean"></property>
+		<property name="otherStyle" column="OTHERSTYLE" type="integer"></property>
+		<property name="otherSelectOptions" column="OTHERSELECTOPTIONS" type="string" length="200"></property>
+		
+		<property name="matrixRowTitles" column="MATRIXROWTITLES" type="string" length="200"></property>
+		<property name="matrixColTitles" column="MATRIXCOLTITLES" type="string" length="200"></property>
+		<property name="matrixSelectOptions" column="MATRIXSELECTOPTIONS" type="string" length="200"></property>
+		
+		<!-- 映射从 Question 到 Page 之间多对一关联关系 -->
+		<many-to-one name="page" class="Page" column="PAGEID"></many-to-one>
+		
+	</class>
+	
+</hibernate-mapping>

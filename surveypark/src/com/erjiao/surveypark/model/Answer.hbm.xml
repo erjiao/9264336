@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping package="com.erjiao.surveypark.model">
+	
+	<class name="Answer" table="SURVEYPARK_ANSWERS">
+		<id name="id" column="id" type="integer">
+			<generator class="sequence">
+				<param name="sequence">sq_surveypark_answerid</param>
+			</generator>
+		</id>
+		<property name="answerIds" column="ANSWERIDS" type="string" length="100"></property>
+		<property name="otherAnswer" column="OTHERANSWER" type="string" length="100"></property>
+		<property name="uuid" column="UUID" type="string" length="100"></property>
+		<property name="answerTime" column="ANSWERTIME" type="time"></property>
+		<property name="questionId" column="QUESTIONID" type="integer"></property>
+		<property name="surveyId" column="SURVEYID" type="integer"></property>
+	</class>
+	
+</hibernate-mapping>

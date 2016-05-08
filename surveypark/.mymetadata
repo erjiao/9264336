@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-module
+  type="WEB"
+  name="surveypark"
+  id="myeclipse.1458308633052"
+  context-root="/surveypark"
+  j2ee-spec="6.0"
+  archive="surveypark.war">
+  <attributes>
+    <attribute name="webrootdir" value="WebRoot" />
+  </attributes>
+</project-module>
+
