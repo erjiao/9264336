@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="3.0" 
+	xmlns="http://java.sun.com/xml/ns/javaee" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+	http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd">
+  <display-name></display-name>
+  <servlet>
+    <servlet-name>AjaxRequestServlet</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxRequestServlet</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxResponseText</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxResponseText</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxResponseXML</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxResponseXML</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxResponseJSON</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxResponseJSON</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxjQueryServlet</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxjQueryServlet</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>QueryServlet</servlet-name>
+    <servlet-class>com.erjiao.suggest.servlet.QueryServlet</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>SendMessage</servlet-name>
+    <servlet-class>com.erjiao.chat.servlet.SendMessage</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>ServletAsk</servlet-name>
+    <servlet-class>com.erjiao.chat.servlet.ServletAsk</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>ServletGetNew</servlet-name>
+    <servlet-class>com.erjiao.chat.servlet.ServletGetNew</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxResponseJSONP</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxResponseJSONP</servlet-class>
+  </servlet>
+  <servlet>
+    <servlet-name>AjaxResponseJSONP2</servlet-name>
+    <servlet-class>com.erjiao.ajax.servlet.AjaxResponseJSONP2</servlet-class>
+  </servlet>
+
+
+
+
+
+
+
+
+
+
+
+  <servlet-mapping>
+    <servlet-name>AjaxRequestServlet</servlet-name>
+    <url-pattern>/ajaxRequestServlet</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxResponseText</servlet-name>
+    <url-pattern>/ajaxResponseText</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxResponseXML</servlet-name>
+    <url-pattern>/ajaxResponseXML</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxResponseJSON</servlet-name>
+    <url-pattern>/ajaxResponseJSON</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxjQueryServlet</servlet-name>
+    <url-pattern>/ajaxjQueryServlet</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>QueryServlet</servlet-name>
+    <url-pattern>/queryServlet</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>SendMessage</servlet-name>
+    <url-pattern>/sendMessage</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>ServletAsk</servlet-name>
+    <url-pattern>/servletAsk</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>ServletGetNew</servlet-name>
+    <url-pattern>/servletGetNew</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxResponseJSONP</servlet-name>
+    <url-pattern>/ajaxResponseJSONP</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>AjaxResponseJSONP2</servlet-name>
+    <url-pattern>/ajaxResponseJSONP2</url-pattern>
+  </servlet-mapping>	
+  <welcome-file-list>
+    <welcome-file>index.jsp</welcome-file>
+  </welcome-file-list>
+</web-app>

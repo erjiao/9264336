@@ -1,0 +1,28 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Insert title here</title>
+<script type="text/javascript">
+	/*
+	 1.最外层只能是[]或{}
+	 2.[]表示JSON 数组: [value_1,value_2,....value_n]
+	 3.{}表示JSON 对象: {key_1:value_1,kye_2:value_2,....}
+	 4.key 数据类型: 字符串
+	 5.value 数据类型:
+		 基本数据类型: 数值, 布尔, 字符串
+		 引用数据类型: 数组, 对象
+     6.优势
+       ①数据量小
+       ②解析速度快
+       ③是JavaScript中直接支持的数据格式, 解析方便.
+	*/
+	 var json = ["hello", {"userName" : "erjiao"}]
+	 alert(json[0])
+	 alert(json[0] + ", " + json[1].userName)	
+</script>
+</head>
+<body>
+	
+</body>
+</html>
